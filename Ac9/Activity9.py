@@ -101,21 +101,34 @@ df_label = df[label_columns]
 # print(df_label)
 
 # Visualize signals
-df_feature.plot()
-plt.show()
-df_label.plot()
-plt.show()
+# df_feature.plot()
+# plt.show()
+# df_label.plot()
+# plt.show()
 
 # ------------ 1D to 3D feature-------------------------------
 # set sliding window parameter
 
-df_feature3D,df_label_new=[]
+df_feature3D=[[]]
+df_feature3D = np.array(df_feature3D)
+df_label_new=[]
+df_label_new = np.array(df_label_new)
 slidingW = 100
 Stride_step = 5
+n_features = 4 #number of colums form df_feature
+
 for t in range( 0 , len(df_feature), Stride_step ):
-    n=t+slidingW
-    F3d = df_feature(t:n)
-    df_feature3D.append(F3d)
-    df_feature3D.reshape(slidingW, 4, 1)
-    Labels = stats.mode(df_label( t : t+slidingW))
+    F3d = df_feature[t:t+slidingW]
+    print("F3d: ",F3d)
+    print(df_feature3D)
+    df_feature3D=np.concatenate((df_feature3D,F3d),axis=1)
+    df_feature3D.reshape(slidingW, n_features , 1)
+    Labels = stats.mode(df_label[t : t+slidingW])
     df_label_new.append(Labels)
+
+# ------------ Train-Test-Split 2D features -------------------------------
+x_train, x_test, y_train, y_test = train_test_split( df_feature, df_label)
+
+# ------------ Train-Test-Split 3D features -------------------------------
+x3D_train, x3D_test, y3D_train, y3D_test = train_test_split( df_feature3D , df_label_new)
+
