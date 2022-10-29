@@ -159,7 +159,7 @@ label_columns = ['sleep']
 
 # print(df_feature)
 # print(df_label.describe())
-print("test"*9)
+
 # ------------Simple Moving Average (SMA) ------------------------------
 df_feature_SMA = pd.DataFrame(columns=['accX','accY','accZ','heartrate'])
 df_feature_SMA['accX'] = df_feature['accX'].rolling(5, min_periods=1).mean()
@@ -176,15 +176,17 @@ df_label_new = np.array([])
 df_feature2D_T = np.array([])
 for t in range( 0 , len(df_feature), Stride_step ):
     F2d= np.array(df_feature[t:t+slidingW],ndmin=2)
-    df_feature2D.append(F2d)
+    df_feature2D = np.append(df_feature2D,F2d)
     F2d_T = np.transpose(F2d)
-    df_feature2D_T.append(F2d_T)
-    Labels = stats.mode(df_label[t : t+slidingW , 'label'])
-    df_label_new.append(Labels)
+    df_feature2D_T =np.append(df_feature2D_T,F2d_T)
+    Labels = stats.mode(df_label[t : t+slidingW])
+    df_label_new = np.append(df_label_new,Labels)
 
 #------------ Train-Test-Split 2D features no transpose-------------------------------
 rseed=42
 X_train, X_test, Y_train, Y_test = model_selection.train_test_split(df_feature, df_label, test_size=0.3, random_state=rseed)
 
+print(df_feature2D_T.shape)
+print(df_label_new.shape)
 # ------------ Train-Test-Split 3D features with transpose -------------------------------
-x3D_train, x3D_test, y3D_train, y3D_test = model_selection.train_test_split(df_feature2D_T, df_label_new, test_size=0.3, random_state=rseed)
+x2_train, x2_test, y2_train, y2_test = model_selection.train_test_split(df_feature2D_T, df_label_new, test_size=0.3, random_state=rseed)
