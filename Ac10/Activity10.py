@@ -15,9 +15,9 @@ import tensorflow as tf
 from tensorflow.keras import datasets, layers, models
 from tensorflow.keras.layers import Conv2D, MaxPooling2D,Dropout,Flatten,Dense
 
-ACC = pd.read_csv("C:/Vs code file/Machine Learning/Machine-Learning/Ac9/acceleration.txt", sep = ' ',names=['timedelta', 'accX', 'accY', 'accZ'])
-HeartR = pd.read_csv("C:/Vs code file/Machine Learning/Machine-Learning/Ac9/heartrate.txt", sep = ',',names=['timedelta', 'heartrate'])
-SleepL = pd.read_csv("C:/Vs code file/Machine Learning/Machine-Learning/Ac9/labeled_sleep.txt", sep = ' ',names=['timedelta', 'sleep'])
+ACC = pd.read_csv("acceleration.txt", sep = ' ',names=['timedelta', 'accX', 'accY', 'accZ'])
+HeartR = pd.read_csv("heartrate.txt", sep = ',',names=['timedelta', 'heartrate'])
+SleepL = pd.read_csv("labeled_sleep.txt", sep = ' ',names=['timedelta', 'sleep'])
 #C:\Vs code file\ML\Ac8
 
 #check timedelta,min,max of acc,hr,slp
@@ -173,14 +173,21 @@ slidingW = 100 #จ ํานวน row
 Stride_step = 5
 df_feature2D = np.array([],ndmin=2)
 df_label_new = np.array([])
-df_feature2D_T = np.array([])
+df_feature2D_T = np.array([],ndmin=2)
 for t in range( 0 , len(df_feature), Stride_step ):
     F2d= np.array(df_feature[t:t+slidingW],ndmin=2)
-    df_feature2D = np.append(df_feature2D,F2d)
+    if F2d.size < slidingW*4:
+        break
+    F2d.reshape(slidingW,4)
     F2d_T = np.transpose(F2d)
-    df_feature2D_T =np.append(df_feature2D_T,F2d_T)
+    if df_feature2D_T.size == 0 :
+        df_feature2D_T = F2d_T
+    else:
+        df_feature2D_T = np.dstack((df_feature2D_T,F2d_T))
     Labels = stats.mode(df_label[t : t+slidingW])
-    df_label_new = np.append(df_label_new,Labels)
+    df_label_new = np.append(df_label_new,Labels[0])
+df_feature2D_T = np.swapaxes(df_feature2D_T,0,2)
+# df_feature2D_T = np.swapaxes(df_feature2D_T,1,2)
 
 #------------ Train-Test-Split 2D features no transpose-------------------------------
 rseed=42
