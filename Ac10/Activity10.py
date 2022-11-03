@@ -13,11 +13,11 @@ import datetime as dt
 from sklearn.neural_network import MLPClassifier
 import tensorflow as tf
 from tensorflow.keras import datasets, layers, models
-from tensorflow.keras.layers import Conv2D, MaxPooling2D,Dropout,Flatten,Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D,Dropout,Flatten,Dense,LSTM
 
-ACC = pd.read_csv("acceleration.txt", sep = ' ',names=['timedelta', 'accX', 'accY', 'accZ'])
-HeartR = pd.read_csv("heartrate.txt", sep = ',',names=['timedelta', 'heartrate'])
-SleepL = pd.read_csv("labeled_sleep.txt", sep = ' ',names=['timedelta', 'sleep'])
+ACC = pd.read_csv("C:/Vs code file/Machine Learning/Machine-Learning/Ac10/acceleration.txt", sep = ' ',names=['timedelta', 'accX', 'accY', 'accZ'])
+HeartR = pd.read_csv("C:/Vs code file/Machine Learning/Machine-Learning/Ac10/heartrate.txt", sep = ',',names=['timedelta', 'heartrate'])
+SleepL = pd.read_csv("C:/Vs code file/Machine Learning/Machine-Learning/Ac10/labeled_sleep.txt", sep = ' ',names=['timedelta', 'sleep'])
 #C:\Vs code file\ML\Ac8
 
 #check timedelta,min,max of acc,hr,slp
@@ -171,29 +171,97 @@ df_feature_SMA['heartrate'] = df_feature['heartrate'].rolling(5, min_periods=1).
 # set sliding window parameter
 slidingW = 100 #จ ํานวน row
 Stride_step = 5
-df_feature2D = np.array([],ndmin=2)
+df_feature2D = np.array([])
 df_label_new = np.array([])
-df_feature2D_T = np.array([],ndmin=2)
+df_feature2D_T = np.array([])
 for t in range( 0 , len(df_feature), Stride_step ):
-    F2d= np.array(df_feature[t:t+slidingW],ndmin=2)
-    if F2d.size < slidingW*4:
+    F2d = np.array(df_feature[t:t+slidingW],ndmin=2)
+    if len(F2d) <slidingW:
         break
-    F2d.reshape(slidingW,4)
-    F2d_T = np.transpose(F2d)
-    if df_feature2D_T.size == 0 :
+    F2d_T = F2d.transpose()
+    if df_feature2D.size == 0 :
+        df_feature2D = F2d
         df_feature2D_T = F2d_T
     else:
+        df_feature2D = np.dstack((df_feature2D,F2d))
         df_feature2D_T = np.dstack((df_feature2D_T,F2d_T))
     Labels = stats.mode(df_label[t : t+slidingW])
     df_label_new = np.append(df_label_new,Labels[0])
+df_feature2D = np.swapaxes(df_feature2D,0,2)
 df_feature2D_T = np.swapaxes(df_feature2D_T,0,2)
-# df_feature2D_T = np.swapaxes(df_feature2D_T,1,2)
+print(df_feature2D.shape)
+print(df_feature2D_T.shape)
+print(df_label_new.shape)
 
 #------------ Train-Test-Split 2D features no transpose-------------------------------
 rseed=42
-X_train, X_test, Y_train, Y_test = model_selection.train_test_split(df_feature, df_label, test_size=0.3, random_state=rseed)
+print(df_label_new)
+X_train, X_test, Y_train, Y_test = model_selection.train_test_split(df_feature2D, df_label_new, test_size=0.3, random_state=rseed)
 
-print(df_feature2D_T.shape)
-print(df_label_new.shape)
-# ------------ Train-Test-Split 3D features with transpose -------------------------------
+# ------------ Train-Test-Split 2D features with transpose -------------------------------
 x2_train, x2_test, y2_train, y2_test = model_selection.train_test_split(df_feature2D_T, df_label_new, test_size=0.3, random_state=rseed)
+
+# ------------ LSTM Architecture parameter -------------------------------
+# Nlayer (LSTM, dense), Nnode, Activation
+LSTM_L1 = 100 # try 200, 300, 400, 500, 1000
+LSTM_L2 = 50    # try 50, 100, 150, 200, 250, 300 
+dropRate_L1 = 0.25
+dropRate_L2 = 0.5
+D_out = 6
+Activation = "Softmax"
+n_classes = 6
+# try
+# #Option #1:
+inRow = 4
+inCol = slidingW
+ 
+# # # Option #2
+# inRow = slidingW
+# inCol = 4
+
+Input_shape = (inRow, inCol)
+
+# ------------ Create LSTM Model -------------------------------
+model = models.Sequential()
+model.add( LSTM ( LSTM_L1, return_sequences=True,input_shape=Input_shape))
+model.add(Dropout(dropRate_L1 ))
+model.add(LSTM(LSTM_L2 ))
+model.add(Dropout(dropRate_L2))
+model.add(Dense(n_classes, activation='softmax'))
+model.summary()
+
+# ------------ Create Optimizer -------------------------------
+model.compile( optimizer='adam',loss='sparse_categorical_crossentropy',metrics=["acc"])
+# ------ Train CNN using 2D feature--------------------------------------------
+# Training the model
+EP = 100
+batch_size = 60 # try 20, 40, 60, 80, 100
+print(X_test.shape)
+print(Y_test.shape)
+print(x2_test.shape)
+print(y2_test.shape)
+history = model.fit( X_train, Y_train,batch_size = batch_size,validation_data=(X_test, Y_test), epochs=EP)
+Acc_score = model.evaluate(X_test, Y_test, verbose=0)
+print(Acc_score)
+
+
+
+# #LSTM prediction for Option #1 and Option #2
+LSTM_pred = np.argmax(model.predict(X_test),axis=1)
+# Get classID from max prob(LSTM_pred)
+df_pred = pd.DataFrame(LSTM_pred)
+# df_class => use dataframe -> idxmax(axis=1)
+
+# ------------ View Confusion Matrix, Classification Report -------------------------------
+print('Confusion Matrix of non_transpose: ')
+print(confusion_matrix(Y_test,LSTM_pred))
+print('Classification Report of non_transpose: ')
+print(classification_report(Y_test,LSTM_pred))
+
+# View Accuracy Graph, Loss Graph
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.show()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.show()

@@ -124,7 +124,6 @@ for t in range(0 , len(df_feature), Stride_step ):
     # print(F3d[0])
     if len(F3d) <slidingW:
         break
-    F3d.reshape(slidingW, n_features,1)
     # print(df_feature3D.shape)
     # print(F3d.shape)
     if df_feature3D.size == 0 :
